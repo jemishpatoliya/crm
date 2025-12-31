@@ -21,6 +21,7 @@ interface AppState {
   login: (email: string, otp: string) => Promise<boolean>;
   logout: () => void;
   switchRole: (role: User['role']) => void;
+  updateCurrentUser: (data: Partial<User>) => void;
   tenants: Tenant[];
   addTenant: (tenant: Omit<Tenant, 'id'>) => Promise<Tenant>;
   updateTenant: (id: string | number, data: Partial<Tenant>) => void;
@@ -36,7 +37,17 @@ interface AppState {
 const AppContext = createContext<AppState | undefined>(undefined);
 
 export const AppProvider = ({ children }: { children: ReactNode }) => {
-  const [currentUser, setCurrentUser] = useState<User | null>(defaultAuthState.currentUser);
+  const [currentUser, setCurrentUser] = useState<User | null>(() => {
+    if (typeof window === 'undefined') return defaultAuthState.currentUser;
+    try {
+      const stored = localStorage.getItem('crm_currentUser');
+      if (!stored) return defaultAuthState.currentUser;
+      const parsed = JSON.parse(stored);
+      return parsed?.id ? parsed : defaultAuthState.currentUser;
+    } catch {
+      return defaultAuthState.currentUser;
+    }
+  });
   const [isAuthenticated, setIsAuthenticated] = useState(defaultAuthState.isAuthenticated);
   const [tenants, setTenants] = useState<Tenant[]>(defaultTenants);
   const [goals, setGoalsState] = useState({ monthlyTarget: 100, leadsTarget: 200, conversionsTarget: 25 });
@@ -53,6 +64,15 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     mockApi.initialize('payments', defaultPayments);
     mockApi.initialize('users', mockUsers);
   }, []);
+
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (isAuthenticated && currentUser) {
+      localStorage.setItem('crm_currentUser', JSON.stringify(currentUser));
+    } else {
+      localStorage.removeItem('crm_currentUser');
+    }
+  }, [currentUser, isAuthenticated]);
 
   const login = useCallback(async (email: string, otp: string): Promise<boolean> => {
     setIsLoading(true);
@@ -80,6 +100,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     if (user) setCurrentUser(user);
   }, []);
 
+  const updateCurrentUser = useCallback((data: Partial<User>) => {
+    setCurrentUser(prev => prev ? ({ ...prev, ...data }) : prev);
+  }, []);
+
   const addTenant = useCallback(async (tenant: Omit<Tenant, 'id'>): Promise<Tenant> => {
     setIsLoading(true);
     const newTenant: Tenant = { ...tenant, id: `t_${Date.now()}` };
@@ -103,6 +127,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   return (
     <AppContext.Provider value={{
       currentUser, isAuthenticated, login, logout, switchRole,
+      updateCurrentUser,
       tenants, addTenant, updateTenant, goals, setGoals,
       dateRange, setDateRange, leads, addLeads, isLoading,
     }}>

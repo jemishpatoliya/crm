@@ -76,6 +76,22 @@ export const mockApi = {
     }
     
     if (!data) throw new Error(`No data found for ${route}`);
+
+    if (key === 'bookings') {
+      let changed = false;
+      const normalized = data.map((b: any) => {
+        if (b?.status === 'HOLD') {
+          changed = true;
+          return { ...b, status: 'HOLD_CONFIRMED' };
+        }
+        return b;
+      });
+
+      if (changed) {
+        setStore('bookings', normalized);
+        data = normalized;
+      }
+    }
     
     // If ID provided, return single item
     if (id) {
@@ -278,7 +294,7 @@ export const mockApi = {
       projectName: units[unitIndex].project,
       tokenAmount,
       totalPrice: units[unitIndex].price,
-      status: 'HOLD',
+      status: 'HOLD_CONFIRMED',
       holdExpiresAt: holdExpiry.toISOString(),
       tenantId: customerData.tenantId || 't_soundarya',
       createdAt: new Date().toISOString(),

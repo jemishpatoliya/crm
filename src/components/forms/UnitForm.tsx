@@ -26,18 +26,18 @@ interface UnitFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
+  mode?: "create" | "edit";
+  initialUnit?: any;
 }
 
 const initialUnit = {
   unitNo: "",
   project: "",
-  projectType: "Residential",
-  tower: "",
-  floor: 0,
-  type: "",
+  towerName: "",
+  floorNumber: 0,
   area: "",
   price: "",
-  status: "Available",
+  status: "AVAILABLE",
   // Residential fields
   bedrooms: 0,
   bathrooms: 0,
@@ -49,7 +49,23 @@ const initialUnit = {
   covered: false,
 };
 
-export const UnitForm = ({ open, onOpenChange, onSuccess }: UnitFormProps) => {
+const parseNumber = (value: string): number => {
+  const raw = String(value || "").trim();
+  if (!raw) return 0;
+
+  const lower = raw.toLowerCase();
+  const cleaned = lower.replace(/[^0-9.]/g, "");
+  const parsed = Number(cleaned);
+  if (!Number.isFinite(parsed)) return 0;
+
+  // Support shorthand pricing inputs like 85L / 1.2Cr
+  if (lower.includes("cr")) return Math.round(parsed * 10000000);
+  if (lower.includes("lac") || lower.includes("lakh") || /\bl\b/.test(lower) || lower.endsWith("l")) return Math.round(parsed * 100000);
+
+  return parsed;
+};
+
+export const UnitForm = ({ open, onOpenChange, onSuccess, mode = "create", initialUnit: initialUnitProp }: UnitFormProps) => {
   const [unit, setUnit] = useState(initialUnit);
   const [projects, setProjects] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -58,6 +74,26 @@ export const UnitForm = ({ open, onOpenChange, onSuccess }: UnitFormProps) => {
     const stored = mockApi.getAll("projects");
     setProjects(stored.length > 0 ? stored : defaultProjects);
   }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    if (mode === "edit" && initialUnitProp) {
+      const areaFromUnit =
+        initialUnitProp.mainType === "Industrial"
+          ? initialUnitProp.totalArea
+          : initialUnitProp.carpetArea;
+
+      setUnit({
+        ...initialUnit,
+        ...initialUnitProp,
+        price: typeof initialUnitProp.price === "number" ? String(initialUnitProp.price) : (initialUnitProp.price ?? ""),
+        area: areaFromUnit ? String(areaFromUnit) : (initialUnitProp.area ?? ""),
+        builtUpArea: initialUnitProp.builtUpArea ? String(initialUnitProp.builtUpArea) : (initialUnitProp.builtUpArea ?? ""),
+      });
+      return;
+    }
+    setUnit(initialUnit);
+  }, [open, mode, initialUnitProp]);
 
   const selectedProject = projects.find((p) => p.name === unit.project);
   const projectType = selectedProject?.mainType || "Residential";
@@ -68,39 +104,72 @@ export const UnitForm = ({ open, onOpenChange, onSuccess }: UnitFormProps) => {
       return;
     }
 
+    if (!unit.status) {
+      toast.error("Please select a status");
+      return;
+    }
+
     setIsLoading(true);
     try {
+      const parsedArea = parseNumber(unit.area);
+      const parsedPrice = parseNumber(unit.price);
+
       const unitData: any = {
         unitNo: unit.unitNo,
+        projectId: selectedProject?.id,
         project: unit.project,
-        tower: unit.tower,
-        floor: unit.floor,
-        type: unit.type,
-        area: unit.area,
-        price: unit.price,
+        mainType: projectType,
+        price: parsedPrice,
         status: unit.status,
       };
 
-      // Add type-specific fields
       if (projectType === "Residential") {
         unitData.bedrooms = unit.bedrooms;
         unitData.bathrooms = unit.bathrooms;
-        unitData.type = `${unit.bedrooms} BHK`;
-      } else if (projectType === "Commercial") {
-        unitData.carpetArea = unit.carpetArea;
-        unitData.builtUpArea = unit.builtUpArea;
-      } else if (projectType === "Industrial") {
-        unitData.plotSize = unit.plotSize;
-        unitData.covered = unit.covered;
+        unitData.carpetArea = parsedArea;
+        unitData.builtUpArea = parseNumber(unit.builtUpArea) || parsedArea;
+        unitData.floorNumber = unit.floorNumber;
+        unitData.towerName = unit.towerName;
+        unitData.facing = initialUnitProp?.facing || "East";
+        unitData.hasBalcony = initialUnitProp?.hasBalcony ?? true;
+        unitData.parkingCount = initialUnitProp?.parkingCount ?? 1;
+        unitData.pricePerSqft = parsedArea > 0 ? Math.round(parsedPrice / parsedArea) : 0;
       }
 
-      await mockApi.post("/units", unitData);
-      toast.success(`Unit "${unit.unitNo}" created successfully`);
+      if (projectType === "Commercial") {
+        unitData.carpetArea = parsedArea;
+        unitData.builtUpArea = parseNumber(unit.builtUpArea) || parsedArea;
+        unitData.frontage = initialUnitProp?.frontage ?? 0;
+        unitData.floorNumber = unit.floorNumber;
+        unitData.suitableFor = (initialUnitProp?.suitableFor || "Office") as any;
+        unitData.cornerUnit = initialUnitProp?.cornerUnit ?? false;
+        unitData.washroomAvailable = initialUnitProp?.washroomAvailable ?? true;
+        unitData.maintenanceCharges = initialUnitProp?.maintenanceCharges ?? 0;
+      }
+
+      if (projectType === "Industrial") {
+        unitData.totalArea = parsedArea;
+        unitData.clearHeight = initialUnitProp?.clearHeight ?? 0;
+        unitData.facilityType = (initialUnitProp?.facilityType || "Warehouse") as any;
+        unitData.powerLoad = initialUnitProp?.powerLoad ?? 0;
+        unitData.dockDoors = initialUnitProp?.dockDoors ?? 0;
+        unitData.parkingSpace = initialUnitProp?.parkingSpace ?? 0;
+        unitData.roadAccess = initialUnitProp?.roadAccess || "N/A";
+        unitData.fireNOC = initialUnitProp?.fireNOC ?? true;
+      }
+
+      if (mode === "edit" && initialUnitProp?.id) {
+        await mockApi.patch("/units", initialUnitProp.id, unitData);
+        toast.success(`Unit "${unit.unitNo}" updated successfully`);
+      } else {
+        await mockApi.post("/units", unitData);
+        toast.success(`Unit "${unit.unitNo}" created successfully`);
+      }
       setUnit(initialUnit);
       onOpenChange(false);
       onSuccess?.();
     } catch (error) {
-      toast.error("Failed to create unit");
+      toast.error(mode === "edit" ? "Failed to update unit" : "Failed to create unit");
     } finally {
       setIsLoading(false);
     }
@@ -112,10 +181,10 @@ export const UnitForm = ({ open, onOpenChange, onSuccess }: UnitFormProps) => {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Home className="w-5 h-5 text-primary" />
-            Add New Unit
+            {mode === "edit" ? "Edit Unit" : "Add New Unit"}
           </DialogTitle>
           <DialogDescription>
-            Create a new unit within a project.
+            {mode === "edit" ? "Update unit details." : "Create a new unit within a project."}
           </DialogDescription>
         </DialogHeader>
 
@@ -156,8 +225,8 @@ export const UnitForm = ({ open, onOpenChange, onSuccess }: UnitFormProps) => {
               <Input
                 id="tower"
                 placeholder="e.g., Tower A"
-                value={unit.tower}
-                onChange={(e) => setUnit({ ...unit, tower: e.target.value })}
+                value={unit.towerName}
+                onChange={(e) => setUnit({ ...unit, towerName: e.target.value })}
               />
             </div>
             <div className="space-y-2">
@@ -166,8 +235,8 @@ export const UnitForm = ({ open, onOpenChange, onSuccess }: UnitFormProps) => {
                 id="floor"
                 type="number"
                 placeholder="0"
-                value={unit.floor || ""}
-                onChange={(e) => setUnit({ ...unit, floor: parseInt(e.target.value) || 0 })}
+                value={unit.floorNumber || ""}
+                onChange={(e) => setUnit({ ...unit, floorNumber: parseInt(e.target.value) || 0 })}
               />
             </div>
           </div>
@@ -299,10 +368,10 @@ export const UnitForm = ({ open, onOpenChange, onSuccess }: UnitFormProps) => {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="Available">Available</SelectItem>
-                <SelectItem value="Booked">Booked</SelectItem>
-                <SelectItem value="Hold">Hold</SelectItem>
-                <SelectItem value="Sold">Sold</SelectItem>
+                <SelectItem value="AVAILABLE">Available</SelectItem>
+                <SelectItem value="HOLD">On Hold</SelectItem>
+                <SelectItem value="BOOKED">Booked</SelectItem>
+                <SelectItem value="SOLD">Sold</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -313,7 +382,7 @@ export const UnitForm = ({ open, onOpenChange, onSuccess }: UnitFormProps) => {
             Cancel
           </Button>
           <Button onClick={handleSubmit} disabled={isLoading}>
-            {isLoading ? "Creating..." : "Create Unit"}
+            {isLoading ? (mode === "edit" ? "Saving..." : "Creating...") : (mode === "edit" ? "Save Changes" : "Create Unit")}
           </Button>
         </DialogFooter>
       </DialogContent>

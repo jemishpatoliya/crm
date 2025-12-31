@@ -189,7 +189,7 @@ export interface Payment {
   bookingId?: string;
   amount: number;
   type: 'Token' | 'Booking' | 'Down Payment' | 'Milestone' | 'Final';
-  method: 'Bank Transfer' | 'Cash' | 'Cheque' | 'Online';
+  method: 'Bank Transfer' | 'Cash' | 'Cheque' | 'Online' | 'UPI' | 'RTGS' | 'Card' | 'Net Banking';
   date: string;
   status: 'Pending' | 'Received' | 'Overdue' | 'Refunded';
   receiptNo?: string;
@@ -249,7 +249,7 @@ export interface Booking {
   managerNotes?: string;
   paymentId?: string;
   paymentRecordedAt?: string;
-  paymentMode?: 'UPI' | 'Cash' | 'Cheque' | 'RTGS' | 'Bank Transfer';
+  paymentMode?: 'UPI' | 'Cash' | 'Cheque' | 'RTGS' | 'Bank Transfer' | 'Card' | 'Net Banking' | 'Online';
   paymentRemarks?: string;
   tenantId: string;
   notes?: string;

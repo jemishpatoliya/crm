@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import { ReactNode } from "react";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface PageWrapperProps {
   children: ReactNode;
@@ -16,14 +17,15 @@ export const PageWrapper = ({
   actions,
   sidebarCollapsed,
 }: PageWrapperProps) => {
+  const isMobile = useIsMobile();
   return (
     <motion.main
       initial={false}
-      animate={{ marginLeft: sidebarCollapsed ? 72 : 260 }}
+      animate={{ marginLeft: isMobile ? 0 : (sidebarCollapsed ? 72 : 260) }}
       transition={{ duration: 0.2, ease: "easeInOut" }}
       className="min-h-screen pt-16 bg-background"
     >
-      <div className="p-6 lg:p-8">
+      <div className="p-4 sm:p-6 lg:p-8">
         {/* Page Header */}
         <motion.div
           initial={{ opacity: 0, y: -10 }}

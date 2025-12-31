@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import { useOutletContext } from "react-router-dom";
 import { Settings, User, Bell, Building2, Users } from "lucide-react";
 import { PageWrapper } from "@/components/layout/PageWrapper";
@@ -7,11 +8,52 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useAppStore } from "@/stores/appStore";
 import { toast } from "sonner";
 
 export const AdminSettingsPage = () => {
   const { sidebarCollapsed } = useOutletContext<{ sidebarCollapsed: boolean }>();
+  const { currentUser, updateCurrentUser } = useAppStore();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const handleSave = () => toast.success("Settings saved successfully");
+
+  const userInitials = (currentUser?.name || "Admin")
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+
+  const handleChangePhotoClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handlePhotoSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select an image file");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = String(reader.result || "");
+      if (!dataUrl) {
+        toast.error("Failed to load image");
+        return;
+      }
+      updateCurrentUser({ avatar: dataUrl });
+      toast.success("Profile photo updated");
+    };
+    reader.onerror = () => {
+      toast.error("Failed to read image");
+    };
+    reader.readAsDataURL(file);
+  };
 
   return (
     <PageWrapper title="Settings" description="Manage your organization settings." sidebarCollapsed={sidebarCollapsed}>
@@ -26,8 +68,24 @@ export const AdminSettingsPage = () => {
         <TabsContent value="profile">
           <Card className="p-6 space-y-6">
             <div className="flex items-center gap-4">
-              <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center"><span className="text-2xl font-bold text-primary">AD</span></div>
-              <div><Button variant="outline" size="sm">Change Photo</Button></div>
+              <Avatar className="w-20 h-20">
+                <AvatarImage src={currentUser?.avatar} alt={currentUser?.name || "Profile"} />
+                <AvatarFallback className="bg-primary/10 text-primary text-2xl font-bold">
+                  {userInitials}
+                </AvatarFallback>
+              </Avatar>
+              <div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handlePhotoSelected}
+                />
+                <Button variant="outline" size="sm" onClick={handleChangePhotoClick}>
+                  Change Photo
+                </Button>
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2"><Label>Full Name</Label><Input defaultValue="Admin - Soundarya Group" /></div>

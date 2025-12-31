@@ -13,6 +13,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
 import { useAppStore } from "@/stores/appStore";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface TopbarProps {
   sidebarCollapsed: boolean;
@@ -27,6 +29,7 @@ const notifications = [
 
 export const Topbar = ({ sidebarCollapsed, onMenuClick }: TopbarProps) => {
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const { currentUser, logout } = useAppStore();
   const unreadCount = notifications.filter((n) => n.unread).length;
 
@@ -45,9 +48,9 @@ export const Topbar = ({ sidebarCollapsed, onMenuClick }: TopbarProps) => {
   return (
     <motion.header
       initial={false}
-      animate={{ marginLeft: sidebarCollapsed ? 72 : 260 }}
+      animate={{ marginLeft: isMobile ? 0 : (sidebarCollapsed ? 72 : 260) }}
       transition={{ duration: 0.2, ease: "easeInOut" }}
-      className="fixed top-0 right-0 left-0 h-16 bg-card border-b border-border z-40 flex items-center justify-between px-6"
+      className="fixed top-0 right-0 left-0 h-16 bg-card border-b border-border z-40 flex items-center justify-between px-4 sm:px-6"
     >
       <div className="flex items-center gap-4">
         <button
@@ -142,9 +145,12 @@ export const Topbar = ({ sidebarCollapsed, onMenuClick }: TopbarProps) => {
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="flex items-center gap-2 px-2">
-              <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
-                <span className="text-sm font-medium text-primary">{userInitials}</span>
-              </div>
+              <Avatar className="w-8 h-8">
+                <AvatarImage src={currentUser?.avatar} alt={currentUser?.name || "Profile"} />
+                <AvatarFallback className="bg-primary/10">
+                  <span className="text-sm font-medium text-primary">{userInitials}</span>
+                </AvatarFallback>
+              </Avatar>
               <div className="hidden md:block text-left">
                 <p className="text-sm font-medium">{currentUser?.name || "Guest"}</p>
                 <p className="text-xs text-muted-foreground">{currentUser?.role || "Unknown"}</p>

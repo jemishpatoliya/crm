@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { MoreHorizontal, Eye, Edit, Trash2 } from "lucide-react";
-import { units, Unit } from "@/data/mockData";
+import { Unit } from "@/data/mockData";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -22,10 +22,13 @@ import { getUnitDisplayType, getUnitArea, getUnitLocation, formatPrice, getStatu
 interface UnitsTableProps {
   limit?: number;
   data?: Unit[];
+  onView?: (unit: Unit) => void;
+  onEdit?: (unit: Unit) => void;
+  onDelete?: (unit: Unit) => void;
 }
 
-export const UnitsTable = ({ limit, data }: UnitsTableProps) => {
-  const displayUnits = data || (limit ? units.slice(0, limit) : units);
+export const UnitsTable = ({ limit, data = [], onView, onEdit, onDelete }: UnitsTableProps) => {
+  const displayUnits = limit ? data.slice(0, limit) : data;
 
   return (
     <motion.div
@@ -75,15 +78,15 @@ export const UnitsTable = ({ limit, data }: UnitsTableProps) => {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => onView?.(unit)}>
                       <Eye className="w-4 h-4 mr-2" />
                       View Details
                     </DropdownMenuItem>
-                    <DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => onEdit?.(unit)}>
                       <Edit className="w-4 h-4 mr-2" />
                       Edit Unit
                     </DropdownMenuItem>
-                    <DropdownMenuItem className="text-destructive">
+                    <DropdownMenuItem className="text-destructive" onClick={() => onDelete?.(unit)}>
                       <Trash2 className="w-4 h-4 mr-2" />
                       Delete
                     </DropdownMenuItem>

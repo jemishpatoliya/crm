@@ -20,6 +20,7 @@ import {
   ClipboardList,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface SidebarProps {
   role: "super-admin" | "admin" | "manager" | "agent" | "customer";
@@ -92,6 +93,7 @@ const roleLabels: Record<string, { label: string; icon: React.ElementType }> = {
 };
 
 export const Sidebar = ({ role, collapsed, onToggle }: SidebarProps) => {
+  const isMobile = useIsMobile();
   const location = useLocation();
   const navItems = getNavItems(role);
   const roleInfo = roleLabels[role];
@@ -103,13 +105,27 @@ export const Sidebar = ({ role, collapsed, onToggle }: SidebarProps) => {
     );
   };
 
+  const handleNavClick = () => {
+    if (isMobile && !collapsed) onToggle();
+  };
+
   return (
-    <motion.aside
-      initial={false}
-      animate={{ width: collapsed ? 72 : 260 }}
-      transition={{ duration: 0.2, ease: "easeInOut" }}
-      className="fixed left-0 top-0 h-screen bg-sidebar flex flex-col z-50"
-    >
+    <>
+      {isMobile && !collapsed && (
+        <div className="fixed inset-0 bg-black/50 z-40" onClick={onToggle} />
+      )}
+      <motion.aside
+        initial={false}
+        animate={{
+          width: isMobile ? 260 : (collapsed ? 72 : 260),
+          x: isMobile ? (collapsed ? -260 : 0) : 0,
+        }}
+        transition={{ duration: 0.2, ease: "easeInOut" }}
+        className={cn(
+          "fixed left-0 top-0 h-screen bg-sidebar flex flex-col z-50",
+          isMobile && "w-[260px]"
+        )}
+      >
       {/* Header */}
       <div className="h-16 flex items-center justify-between px-4 border-b border-sidebar-border">
         <AnimatePresence mode="wait">
@@ -220,6 +236,7 @@ export const Sidebar = ({ role, collapsed, onToggle }: SidebarProps) => {
                   <NavLink
                     to={item.path}
                     end
+                    onClick={handleNavClick}
                     className={cn(
                       "sidebar-item",
                       isActive && "sidebar-item-active",
@@ -259,6 +276,7 @@ export const Sidebar = ({ role, collapsed, onToggle }: SidebarProps) => {
           )}
         </div>
       </div>
-    </motion.aside>
+      </motion.aside>
+    </>
   );
 };

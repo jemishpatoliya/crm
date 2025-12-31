@@ -15,10 +15,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { BookingCard } from "@/components/booking/BookingCard";
 import { BookingDetailSheet } from "@/components/booking/BookingDetailSheet";
-import { Booking, bookings as defaultBookings } from "@/data/mockData";
+import { Booking, BookingStatus, bookings as defaultBookings } from "@/data/mockData";
 import { mockApi } from "@/lib/mockApi";
 import { toast } from "@/hooks/use-toast";
 import { formatPrice } from "@/lib/unitHelpers";
+
+type PaymentMethod = 'Bank Transfer' | 'UPI' | 'Cash' | 'Cheque' | 'RTGS' | 'Card' | 'Net Banking' | 'Online';
 
 export const AdminBookingsPage = () => {
   const { sidebarCollapsed } = useOutletContext<{ sidebarCollapsed: boolean }>();
@@ -31,7 +33,7 @@ export const AdminBookingsPage = () => {
   
   const [paymentForm, setPaymentForm] = useState({
     amount: '',
-    mode: 'Bank Transfer' as const,
+    mode: 'Bank Transfer' as PaymentMethod,
     remarks: '',
   });
 
@@ -44,7 +46,13 @@ export const AdminBookingsPage = () => {
     loadBookings();
   }, []);
 
-  const paymentPending = bookings.filter(b => b.status === 'PAYMENT_PENDING' || b.status === 'BOOKING_CONFIRMED');
+  const paymentPendingStatuses: BookingStatus[] = [
+    'PAYMENT_PENDING',
+    'BOOKING_CONFIRMED',
+    'HOLD_CONFIRMED',
+  ];
+
+  const paymentPending = bookings.filter((b) => paymentPendingStatuses.includes(b.status));
   const completed = bookings.filter(b => b.status === 'BOOKED');
   const totalRevenue = completed.reduce((sum, b) => sum + b.totalPrice, 0);
   const pendingRevenue = paymentPending.reduce((sum, b) => sum + b.totalPrice, 0);
@@ -246,14 +254,17 @@ export const AdminBookingsPage = () => {
               <Label>Payment Mode</Label>
               <Select 
                 value={paymentForm.mode} 
-                onValueChange={(v) => setPaymentForm({ ...paymentForm, mode: v as typeof paymentForm.mode })}
+                onValueChange={(v) => setPaymentForm({ ...paymentForm, mode: v as PaymentMethod })}
               >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="Bank Transfer">Bank Transfer</SelectItem>
+                  <SelectItem value="Net Banking">Net Banking</SelectItem>
                   <SelectItem value="UPI">UPI</SelectItem>
+                  <SelectItem value="Card">Card</SelectItem>
+                  <SelectItem value="Online">Online</SelectItem>
                   <SelectItem value="Cash">Cash</SelectItem>
                   <SelectItem value="Cheque">Cheque</SelectItem>
                   <SelectItem value="RTGS">RTGS</SelectItem>
